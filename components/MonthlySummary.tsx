@@ -26,7 +26,7 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ sessions, players }) =>
         });
 
         filteredSessions.forEach(session => {
-            const totalCost = session.courtPrice + session.shuttlecockPrice + session.waterPrice;
+            const totalCost = session.courtPrice + session.shuttlecockPrice + session.waterPrice + (session.drinkPrice || 0);
             const numPlayers = session.playerIds.length;
             if (numPlayers > 0) {
                 const costPerPlayer = totalCost / numPlayers;
@@ -57,7 +57,8 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ sessions, players }) =>
     };
     
     const formatCurrency = (amount: number) => {
-        return amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        const rounded = Math.ceil(amount / 1000) * 1000;
+        return rounded.toLocaleString() + ' VND';
     };
 
     return (

@@ -9,12 +9,13 @@ interface SessionCardProps {
     session: Session;
     allPlayers: Player[];
     onUpdatePlayers: (sessionId: string, playerIds: string[]) => void;
+    onUpdateHoliday: (sessionId: string, isHoliday: boolean) => void;
     onDeleteSession: (sessionId: string) => void;
 }
 
-const SessionCard: React.FC<SessionCardProps> = ({ session, allPlayers, onUpdatePlayers, onDeleteSession }) => {
+const SessionCard: React.FC<SessionCardProps> = ({ session, allPlayers, onUpdatePlayers, onUpdateHoliday, onDeleteSession }) => {
     const totalCost = useMemo(() => {
-        return session.courtPrice + session.shuttlecockPrice + session.waterPrice;
+        return session.courtPrice + session.shuttlecockPrice + session.waterPrice + (session.drinkPrice || 0);
     }, [session]);
 
     const costPerPlayer = useMemo(() => {
@@ -29,17 +30,33 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, allPlayers, onUpdate
     };
     
     const formatCurrency = (amount: number) => {
-        return amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        const rounded = Math.ceil(amount / 1000) * 1000;
+        return rounded.toLocaleString() + ' VND';
     };
 
     return (
         <div className="bg-gray-800 rounded-lg shadow-xl border border-gray-700 overflow-hidden transition-shadow hover:shadow-cyan-500/20">
             <div className="p-6">
                 <div className="flex justify-between items-start mb-4">
-                    <div>
+                    <div className="flex-1">
                         <div className="flex items-center text-gray-400 text-sm mb-2">
                             <CalendarIcon className="w-4 h-4 mr-2" />
                             <span>{new Date(session.date).toLocaleString()}</span>
+                            {session.isHoliday && (
+                                <span className="ml-2 px-2 py-0.5 bg-yellow-600/30 border border-yellow-600 text-yellow-400 text-xs rounded-full">Holiday/Off</span>
+                            )}
+                        </div>
+                        <div className="flex items-center space-x-2 mb-3">
+                            <input
+                                type="checkbox"
+                                id={`holiday-${session.id}`}
+                                checked={session.isHoliday}
+                                onChange={(e) => onUpdateHoliday(session.id, e.target.checked)}
+                                className="h-4 w-4 rounded bg-gray-600 border-gray-500 text-yellow-600 focus:ring-yellow-500"
+                            />
+                            <label htmlFor={`holiday-${session.id}`} className="text-sm text-gray-300 cursor-pointer select-none">
+                                Mark as Holiday/Off (exclude from cost calculations)
+                            </label>
                         </div>
                         <div className="flex items-center text-2xl font-bold text-cyan-400">
                              <PriceTagIcon className="w-6 h-6 mr-2" />

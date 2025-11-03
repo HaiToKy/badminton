@@ -1,16 +1,22 @@
 
 import React, { useState, useMemo } from 'react';
-import type { Player, Session } from './types';
+import type { Player, Session, MonthlySettings as MonthlySettingsType } from './types';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import PlayerManager from './components/PlayerManager';
 import AddSessionForm from './components/AddSessionForm';
 import SessionCard from './components/SessionCard';
 import MonthlySummary from './components/MonthlySummary';
+import MonthlySettings from './components/MonthlySettings';
 import { BadmintonIcon } from './components/icons/BadmintonIcon';
 
 const App: React.FC = () => {
     const [players, setPlayers] = useLocalStorage<Player[]>('badminton_players', []);
     const [sessions, setSessions] = useLocalStorage<Session[]>('badminton_sessions', []);
+    const [monthlySettings, setMonthlySettings] = useLocalStorage<MonthlySettingsType[]>('badminton_monthly_settings', []);
+    const [currentMonthKey, setCurrentMonthKey] = useState(() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    });
 
     const addPlayer = (name: string) => {
         if (name && !players.find(p => p.name.toLowerCase() === name.toLowerCase())) {
@@ -28,20 +34,61 @@ const App: React.FC = () => {
         })));
     };
 
-    const addSession = (sessionData: Omit<Session, 'id' | 'playerIds' | 'date'>) => {
+    const addSession = (sessionData: Omit<Session, 'id' | 'playerIds'> & { date: string }) => {
         const newSession: Session = {
             id: crypto.randomUUID(),
-            date: new Date().toISOString(),
             ...sessionData,
             playerIds: [],
         };
         setSessions([newSession, ...sessions]);
     };
 
+    const generateMultipleSessions = (sessionsData: Array<Omit<Session, 'id' | 'playerIds'> & { date: string }>) => {
+        // Get existing session dates (normalized to date only, without time)
+        const existingDates = new Set(
+            sessions.map(s => new Date(s.date).toISOString().split('T')[0])
+        );
+
+        // Filter out sessions for dates that already exist
+        const newSessions = sessionsData
+            .filter(sessionData => {
+                const dateStr = new Date(sessionData.date).toISOString().split('T')[0];
+                return !existingDates.has(dateStr);
+            })
+            .map(sessionData => ({
+                id: crypto.randomUUID(),
+                ...sessionData,
+                playerIds: [],
+            }));
+
+        if (newSessions.length > 0) {
+            setSessions([...newSessions, ...sessions]);
+        }
+    };
+
+    const updateMonthlySettings = (settings: MonthlySettingsType) => {
+        const existingIndex = monthlySettings.findIndex(s => s.monthKey === settings.monthKey);
+        if (existingIndex >= 0) {
+            const updated = [...monthlySettings];
+            updated[existingIndex] = settings;
+            setMonthlySettings(updated);
+        } else {
+            setMonthlySettings([...monthlySettings, settings]);
+        }
+    };
+
+    const currentSettings = useMemo(() => {
+        return monthlySettings.find(s => s.monthKey === currentMonthKey);
+    }, [monthlySettings, currentMonthKey]);
+
     const updateSessionPlayers = (sessionId: string, playerIds: string[]) => {
         setSessions(sessions.map(s => s.id === sessionId ? { ...s, playerIds } : s));
     };
-    
+
+    const updateSessionHoliday = (sessionId: string, isHoliday: boolean) => {
+        setSessions(sessions.map(s => s.id === sessionId ? { ...s, isHoliday } : s));
+    };
+
     const deleteSession = (sessionId: string) => {
         setSessions(sessions.filter(s => s.id !== sessionId));
     };
@@ -64,8 +111,18 @@ const App: React.FC = () => {
             <main className="container mx-auto p-4 md:p-8">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-8">
-                        <AddSessionForm onAddSession={addSession} />
-                        
+                        <MonthlySettings
+                            currentMonthKey={currentMonthKey}
+                            settings={currentSettings}
+                            onUpdateSettings={updateMonthlySettings}
+                            onGenerateSessions={generateMultipleSessions}
+                        />
+                        <AddSessionForm
+                            onAddSession={addSession}
+                            monthlySettings={currentSettings}
+                            existingSessions={sessions}
+                        />
+
                         <div>
                             <h2 className="text-2xl font-semibold mb-4 border-b-2 border-gray-700 pb-2">Recent Sessions</h2>
                             {sortedSessions.length > 0 ? (
@@ -76,6 +133,7 @@ const App: React.FC = () => {
                                             session={session}
                                             allPlayers={players}
                                             onUpdatePlayers={updateSessionPlayers}
+                                            onUpdateHoliday={updateSessionHoliday}
                                             onDeleteSession={deleteSession}
                                         />
                                     ))}
