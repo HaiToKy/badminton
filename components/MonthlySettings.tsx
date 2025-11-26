@@ -8,9 +8,10 @@ interface MonthlySettingsProps {
     settings: MonthlySettingsType | undefined;
     onUpdateSettings: (settings: MonthlySettingsType) => void;
     onGenerateSessions: (sessions: Array<Omit<Session, 'id' | 'playerIds'> & { date: string }>) => void;
+    existingSessions: Session[];
 }
 
-const MonthlySettings: React.FC<MonthlySettingsProps> = ({ currentMonthKey, settings, onUpdateSettings, onGenerateSessions }) => {
+const MonthlySettings: React.FC<MonthlySettingsProps> = ({ currentMonthKey, settings, onUpdateSettings, onGenerateSessions, existingSessions }) => {
     const [monthlyCourtFee, setMonthlyCourtFee] = useState('');
     const [monthlyShuttlecockPrice, setMonthlyShuttlecockPrice] = useState('');
     const [sessionWaterPrice, setSessionWaterPrice] = useState('');
@@ -33,10 +34,24 @@ const MonthlySettings: React.FC<MonthlySettingsProps> = ({ currentMonthKey, sett
         const daysInMonth = new Date(year, month + 1, 0).getDate();
         const mondays: Date[] = [];
         const wednesdays: Date[] = [];
+        const holidayDates = new Set<string>();
+
+        // Build a set of holiday dates from existing sessions
+        existingSessions.forEach(session => {
+            if (session.isHoliday) {
+                const dateStr = new Date(session.date).toISOString().split('T')[0];
+                holidayDates.add(dateStr);
+            }
+        });
 
         for (let day = 1; day <= daysInMonth; day++) {
             const date = new Date(year, month, day);
+            const dateStr = date.toISOString().split('T')[0];
             const dayOfWeek = date.getDay();
+
+            // Skip if this date is marked as holiday
+            if (holidayDates.has(dateStr)) continue;
+
             if (dayOfWeek === 1) { // Monday
                 mondays.push(date);
             } else if (dayOfWeek === 3) { // Wednesday
@@ -47,10 +62,10 @@ const MonthlySettings: React.FC<MonthlySettingsProps> = ({ currentMonthKey, sett
         const totalSessions = mondays.length + wednesdays.length;
         if (totalSessions === 0) return [];
 
-        // Court price is equally distributed
+        // Court price is equally distributed (excluding holidays)
         const courtPricePerSession = Math.ceil(settings.monthlyCourtFee / totalSessions / 1000) * 1000;
 
-        // Shuttlecock price uses weights: Monday=1, Wednesday=1.4
+        // Shuttlecock price uses weights: Monday=1, Wednesday=1.4 (excluding holidays)
         const totalWeight = (mondays.length * 1) + (wednesdays.length * 1.4);
         const shuttlecockBasePrice = settings.monthlyShuttlecockPrice / totalWeight;
         const mondayShuttlecockPrice = Math.ceil((shuttlecockBasePrice * 1) / 1000) * 1000;
@@ -106,6 +121,13 @@ const MonthlySettings: React.FC<MonthlySettingsProps> = ({ currentMonthKey, sett
         return new Date(parseInt(year), parseInt(month) - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
     };
 
+    const handleRecalculate = () => {
+        if (!settings) return;
+        const [year, month] = currentMonthKey.split('-').map(Number);
+        const sessions = generateMonWedSessions(year, month - 1, settings);
+        onGenerateSessions(sessions);
+    };
+
     if (!isEditing && settings) {
         return (
             <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
@@ -114,12 +136,21 @@ const MonthlySettings: React.FC<MonthlySettingsProps> = ({ currentMonthKey, sett
                         <CalendarIcon className="w-6 h-6 text-cyan-400"/>
                         Monthly Settings
                     </h3>
-                    <button
-                        onClick={() => setIsEditing(true)}
-                        className="text-sm text-cyan-400 hover:text-cyan-300 font-semibold"
-                    >
-                        Edit
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleRecalculate}
+                            className="text-sm text-green-400 hover:text-green-300 font-semibold"
+                            title="Recalculate prices based on current holiday settings"
+                        >
+                            Recalculate Prices
+                        </button>
+                        <button
+                            onClick={() => setIsEditing(true)}
+                            className="text-sm text-cyan-400 hover:text-cyan-300 font-semibold"
+                        >
+                            Edit
+                        </button>
+                    </div>
                 </div>
                 <div className="space-y-3">
                     <div className="flex justify-between items-center text-gray-300">

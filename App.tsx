@@ -161,6 +161,7 @@ const App: React.FC = () => {
                             settings={currentSettings}
                             onUpdateSettings={updateMonthlySettings}
                             onGenerateSessions={generateMultipleSessions}
+                            existingSessions={currentMonthSessions}
                         />
                         <AddSessionForm
                             onAddSession={addSession}
