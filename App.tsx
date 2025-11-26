@@ -48,26 +48,42 @@ const App: React.FC = () => {
     };
 
     const generateMultipleSessions = (sessionsData: Array<Omit<Session, 'id' | 'playerIds'> & { date: string }>) => {
-        // Get existing session dates (normalized to date only, without time)
-        const existingDates = new Set(
-            sessions.map(s => new Date(s.date).toISOString().split('T')[0])
+        // Create a map of date -> session data for easy lookup
+        const sessionDataMap = new Map(
+            sessionsData.map(sd => [
+                new Date(sd.date).toISOString().split('T')[0],
+                sd
+            ])
         );
 
-        // Filter out sessions for dates that already exist
-        const newSessions = sessionsData
-            .filter(sessionData => {
-                const dateStr = new Date(sessionData.date).toISOString().split('T')[0];
-                return !existingDates.has(dateStr);
-            })
-            .map(sessionData => ({
-                id: crypto.randomUUID(),
-                ...sessionData,
-                playerIds: [],
-            }));
+        // Update existing sessions and collect dates that need new sessions
+        const updatedSessions = sessions.map(session => {
+            const dateStr = new Date(session.date).toISOString().split('T')[0];
+            const sessionData = sessionDataMap.get(dateStr);
 
-        if (newSessions.length > 0) {
-            setSessions([...newSessions, ...sessions]);
-        }
+            if (sessionData) {
+                // Update prices for existing session, but keep playerIds and isHoliday
+                sessionDataMap.delete(dateStr); // Mark as processed
+                return {
+                    ...session,
+                    courtPrice: sessionData.courtPrice,
+                    shuttlecockPrice: sessionData.shuttlecockPrice,
+                    waterPrice: sessionData.waterPrice,
+                    drinkPrice: sessionData.drinkPrice,
+                };
+            }
+            return session;
+        });
+
+        // Create new sessions for dates that don't exist yet
+        const newSessions = Array.from(sessionDataMap.values()).map(sessionData => ({
+            id: crypto.randomUUID(),
+            ...sessionData,
+            playerIds: [],
+        }));
+
+        // Combine updated existing sessions with new sessions
+        setSessions([...newSessions, ...updatedSessions]);
     };
 
     const updateMonthlySettings = (settings: MonthlySettingsType) => {
