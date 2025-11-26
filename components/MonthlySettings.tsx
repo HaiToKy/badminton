@@ -206,9 +206,12 @@ const MonthlySettings: React.FC<MonthlySettingsProps> = ({ currentMonthKey, sett
                         type="submit"
                         className="py-2 px-4 bg-cyan-600 hover:bg-cyan-700 text-white font-semibold rounded-md transition"
                     >
-                        Save Settings
+                        Save & Generate Sessions
                     </button>
                 </div>
+                <p className="text-xs text-gray-400 mt-2">
+                    Saving will auto-generate sessions for all Mondays and Wednesdays in {getMonthName(currentMonthKey)}
+                </p>
             </form>
         </div>
     );
