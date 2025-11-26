@@ -2,15 +2,16 @@
 import React, { useState, useMemo } from 'react';
 import type { Player, Session, MonthlySettings as MonthlySettingsType } from './types';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import PlayerManager from './components/PlayerManager';
 import AddSessionForm from './components/AddSessionForm';
 import SessionCard from './components/SessionCard';
 import MonthlySummary from './components/MonthlySummary';
 import MonthlySettings from './components/MonthlySettings';
 import { BadmintonIcon } from './components/icons/BadmintonIcon';
+import playersConfig from './players.json';
 
 const App: React.FC = () => {
-    const [players, setPlayers] = useLocalStorage<Player[]>('badminton_players', []);
+    // Load players from config file
+    const players = playersConfig as Player[];
     const [sessions, setSessions] = useLocalStorage<Session[]>('badminton_sessions', []);
     const [monthlySettings, setMonthlySettings] = useLocalStorage<MonthlySettingsType[]>('badminton_monthly_settings', []);
     const [currentMonthKey, setCurrentMonthKey] = useState(() => {
@@ -35,22 +36,6 @@ const App: React.FC = () => {
 
     const handleMonthChange = (monthKey: string) => {
         setCurrentMonthKey(monthKey);
-    };
-
-    const addPlayer = (name: string) => {
-        if (name && !players.find(p => p.name.toLowerCase() === name.toLowerCase())) {
-            const newPlayer: Player = { id: crypto.randomUUID(), name };
-            setPlayers([...players, newPlayer]);
-        }
-    };
-
-    const deletePlayer = (id: string) => {
-        setPlayers(players.filter(p => p.id !== id));
-        // Also remove player from all sessions
-        setSessions(sessions.map(s => ({
-            ...s,
-            playerIds: s.playerIds.filter(pid => pid !== id)
-        })));
     };
 
     const addSession = (sessionData: Omit<Session, 'id' | 'playerIds'> & { date: string }) => {
@@ -192,7 +177,6 @@ const App: React.FC = () => {
                     </div>
 
                     <div className="space-y-8">
-                        <PlayerManager players={players} onAddPlayer={addPlayer} onDeletePlayer={deletePlayer} />
                         <MonthlySummary sessions={currentMonthSessions} players={players} />
                     </div>
                 </div>
