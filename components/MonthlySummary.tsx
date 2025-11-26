@@ -26,6 +26,9 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ sessions, players }) =>
         });
 
         filteredSessions.forEach(session => {
+            // Skip holiday sessions - they have zero cost
+            if (session.isHoliday) return;
+
             const totalCost = session.courtPrice + session.shuttlecockPrice + session.waterPrice + (session.drinkPrice || 0);
             const numPlayers = session.playerIds.length;
             if (numPlayers > 0) {

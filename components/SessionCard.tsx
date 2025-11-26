@@ -15,12 +15,16 @@ interface SessionCardProps {
 
 const SessionCard: React.FC<SessionCardProps> = ({ session, allPlayers, onUpdatePlayers, onUpdateHoliday, onDeleteSession }) => {
     const totalCost = useMemo(() => {
+        // Holiday sessions have zero cost
+        if (session.isHoliday) return 0;
         return session.courtPrice + session.shuttlecockPrice + session.waterPrice + (session.drinkPrice || 0);
     }, [session]);
 
     const costPerPlayer = useMemo(() => {
+        // Holiday sessions have zero cost per player
+        if (session.isHoliday) return 0;
         return session.playerIds.length > 0 ? totalCost / session.playerIds.length : 0;
-    }, [totalCost, session.playerIds.length]);
+    }, [totalCost, session.playerIds.length, session.isHoliday]);
 
     const handlePlayerToggle = (playerId: string) => {
         const newPlayerIds = session.playerIds.includes(playerId)
